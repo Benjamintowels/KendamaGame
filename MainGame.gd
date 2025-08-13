@@ -20,8 +20,11 @@ var tug_force = 15.0
 var last_mouse_pos = Vector2.ZERO
 var mouse_sensitivity = 0.01
 
+var spike_area: Area3D
+var spike_joint: Joint3D
 
-
+var cached_dama: RigidBody3D
+var cached_ken: PhysicsBody3D
 func _ready():
 	# Wire managers
 	camera_manager.camera = camera
@@ -37,6 +40,36 @@ func _ready():
 
 	# Set up physics
 	setup_physics()
+
+	# Connect hole area signals
+	var hole_area := dama.get_node("PivotPoint/RigidBody3D/HoleArea3D") as Area3D
+	spike_area = ken.get_node("PivotPoint/KenController/Spike/SpikeArea3D") as Area3D
+	hole_area.area_entered.connect(_on_hole_entered)
+	hole_area.area_exited.connect(_on_hole_exited)
+
+	if hole_area:
+		hole_area.monitoring = true
+		hole_area.monitorable = true
+		hole_area.collision_layer = 1
+		hole_area.collision_mask = 1
+		if not hole_area.is_connected("area_entered", Callable(self, "_on_hole_area_body_entered")):
+			hole_area.area_entered.connect(_on_hole_area_body_entered)
+		if not hole_area.is_connected("area_exited", Callable(self, "_on_hole_area_body_exited")):
+			hole_area.area_exited.connect(_on_hole_area_body_exited)
+		# Debug
+		hole_area.area_entered.connect(func(a): print("[DBG] hole area_entered:", a.name, " groups:", a.get_groups()))
+		hole_area.body_entered.connect(func(b): print("[DBG] hole body_entered:", b.name, " groups:", b.get_groups()))
+
+	if spike_area:
+		spike_area.monitoring = true
+		spike_area.monitorable = true
+		spike_area.collision_layer = 1
+		spike_area.collision_mask = 1
+		# Debug
+		spike_area.area_entered.connect(func(a): print("[DBG] spike area_entered:", a.name, " groups:", a.get_groups()))
+
+	cached_dama = kendama_manager.get_dama_body()
+	cached_ken = kendama_manager.get_ken_body() as PhysicsBody3D
 
 func _on_mouse_motion(relative: Vector2, mouse_position: Vector2) -> void:
 	# Tug force
@@ -112,3 +145,47 @@ func _on_hole_area_body_exited(body):
 	# Check if the ken spike exited the dama hole
 	if body.is_in_group("ken_spike"):
 		print("Ken spike exited dama hole!")
+
+func _on_hole_entered(a: Area3D) -> void:
+	if a == spike_area:
+		var dama_body: RigidBody3D = kendama_manager.get_dama_body()
+		var ken_body: PhysicsBody3D = kendama_manager.get_ken_body() as PhysicsBody3D
+		if dama_body and ken_body:
+			dama_body.add_collision_exception_with(ken_body)
+			var joint := Generic6DOFJoint3D.new()
+			joint.node_a = dama_body.get_path()
+			joint.node_b = ken_body.get_path()
+			# Align the joint frame to the spike so sliding uses the spike's axis
+			joint.global_transform = spike_area.global_transform
+			# Lock lateral motion; allow sliding along the spike axis (assumed local Y)
+			joint.set_flag_x(Generic6DOFJoint3D.FLAG_ENABLE_LINEAR_LIMIT, true)
+			joint.set_param_x(Generic6DOFJoint3D.PARAM_LINEAR_LOWER_LIMIT, 0.0)
+			joint.set_param_x(Generic6DOFJoint3D.PARAM_LINEAR_UPPER_LIMIT, 0.0)
+			joint.set_flag_y(Generic6DOFJoint3D.FLAG_ENABLE_LINEAR_LIMIT, true)
+			joint.set_param_y(Generic6DOFJoint3D.PARAM_LINEAR_LOWER_LIMIT, -0.25)
+			joint.set_param_y(Generic6DOFJoint3D.PARAM_LINEAR_UPPER_LIMIT, 0.05)
+			joint.set_flag_z(Generic6DOFJoint3D.FLAG_ENABLE_LINEAR_LIMIT, true)
+			joint.set_param_z(Generic6DOFJoint3D.PARAM_LINEAR_LOWER_LIMIT, 0.0)
+			joint.set_param_z(Generic6DOFJoint3D.PARAM_LINEAR_UPPER_LIMIT, 0.0)
+			# Lock rotation to keep the hole aligned to the spike
+			joint.set_flag_x(Generic6DOFJoint3D.FLAG_ENABLE_ANGULAR_LIMIT, true)
+			joint.set_param_x(Generic6DOFJoint3D.PARAM_ANGULAR_LOWER_LIMIT, 0.0)
+			joint.set_param_x(Generic6DOFJoint3D.PARAM_ANGULAR_UPPER_LIMIT, 0.0)
+			joint.set_flag_y(Generic6DOFJoint3D.FLAG_ENABLE_ANGULAR_LIMIT, true)
+			joint.set_param_y(Generic6DOFJoint3D.PARAM_ANGULAR_LOWER_LIMIT, 0.0)
+			joint.set_param_y(Generic6DOFJoint3D.PARAM_ANGULAR_UPPER_LIMIT, 0.0)
+			joint.set_flag_z(Generic6DOFJoint3D.FLAG_ENABLE_ANGULAR_LIMIT, true)
+			joint.set_param_z(Generic6DOFJoint3D.PARAM_ANGULAR_LOWER_LIMIT, 0.0)
+			joint.set_param_z(Generic6DOFJoint3D.PARAM_ANGULAR_UPPER_LIMIT, 0.0)
+			add_child(joint)
+			spike_joint = joint
+
+func _on_hole_exited(a: Area3D) -> void:
+	if a == spike_area:
+		var dama_body: RigidBody3D = kendama_manager.get_dama_body()
+		var ken_body: PhysicsBody3D = kendama_manager.get_ken_body() as PhysicsBody3D
+		if spike_joint and is_instance_valid(spike_joint):
+			spike_joint.queue_free()
+			spike_joint = null
+		if dama_body and ken_body:
+			dama_body.remove_collision_exception_with(ken_body)
