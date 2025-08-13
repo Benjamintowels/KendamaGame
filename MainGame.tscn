@@ -1,0 +1,55 @@
+[gd_scene load_steps=7 format=3 uid="uid://b4130p5k0q72l"]
+
+[ext_resource type="PackedScene" uid="uid://indl6o7gevhy" path="res://Assets/KendamaController/KendamaContainer.tscn" id="1_kendama"]
+[ext_resource type="Script" uid="uid://cibv6ixl0j5sr" path="res://KendamaGame/MainGame.gd" id="2_main"]
+[ext_resource type="Script" uid="uid://cp7ui0b8sj06s" path="res://KendamaGame/Managers/InputManager.gd" id="3_input"]
+[ext_resource type="Script" uid="uid://budm718ffrqo4" path="res://KendamaGame/Managers/CameraManager.gd" id="4_camera"]
+[ext_resource type="Script" uid="uid://w73owerqd4v3" path="res://KendamaGame/Managers/PhysicsManager.gd" id="5_physics"]
+[ext_resource type="Script" uid="uid://daov6v5e2u5kw" path="res://KendamaGame/Managers/KendamaManager.gd" id="6_kendama"]
+
+[node name="MainGame" type="Node3D"]
+script = ExtResource("2_main")
+
+[node name="InputManager" type="Node" parent="."]
+script = ExtResource("3_input")
+
+[node name="CameraManager" type="Node" parent="."]
+script = ExtResource("4_camera")
+
+[node name="PhysicsManager" type="Node" parent="."]
+script = ExtResource("5_physics")
+
+[node name="KendamaManager" type="Node" parent="."]
+script = ExtResource("6_kendama")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.682252, 0, 3.9807)
+size = 5.0
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.707107, 0.707107, 0, -0.707107, 0.707107, 0, 5, 0)
+shadow_enabled = true
+
+[node name="KendamaContainer" parent="." instance=ExtResource("1_kendama")]
+transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 0, 0, 0)
+
+[node name="UI" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Instructions" type="Label" parent="UI"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = -60.0
+offset_right = 400.0
+offset_bottom = -10.0
+grow_vertical = 0
+text = "Left Click: Rotate Ken +90° | Right Click: Rotate Ken -90° | Mouse Up: Tug Dama"
+horizontal_alignment = 1
